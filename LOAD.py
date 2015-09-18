@@ -2,14 +2,48 @@ __author__ = 'jpradas'
 
 import pymongo
 import datetime
-import nltk, re, pprint
+import nltk
+import random
 from nltk import word_tokenize
 from nltk.corpus import stopwords
 from nltk.corpus import PlaintextCorpusReader
-from nltk.tokenize import sent_tokenize
 from nltk.collocations import BigramCollocationFinder
 from nltk.metrics import BigramAssocMeasures
-import mongodb
+from cStringIO import StringIO
+from os import listdir
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.pdfpage import PDFPage
+from pdfminer.converter import XMLConverter, HTMLConverter, TextConverter
+from pdfminer.layout import LAParams
+
+#VARIABLES GENERALES
+MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
+corpus_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/LOADER/CORPUS/TXT/"
+corpuspdf_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/LOADER/CORPUS/PDF/"
+
+def convert_pdf(path, fichero):
+    rsrcmgr = PDFResourceManager()
+    retstr = StringIO()
+    codec = 'utf-8'
+    laparams = LAParams()
+    outfile=corpus_root + fichero.replace('.pdf','.txt')
+    outfp = file(outfile, 'w')
+    device = TextConverter(rsrcmgr, outfp, codec=codec, laparams=laparams)
+    fp = file(path + fichero, 'rb')
+
+    interpreter = PDFPageInterpreter(rsrcmgr, device)
+    print(fp)
+    for page in PDFPage.get_pages(fp, check_extractable=True):
+        #page.rotate = (page.rotate+rotation) % 360
+        interpreter.process_page(page)
+
+    fp.close()
+    device.close()
+
+    str = retstr.getvalue()
+    retstr.close()
+    outfp.close()
+    return str
 
 def LeeBagWords():
     #MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
@@ -43,42 +77,40 @@ def vocab_words(text):
     all_words=[w[0].lower() for w in all_words]
     return [list(all_words),list(voc_words)]
 
+def carga_mongodb():
+    spanish_tokenizer = nltk.data.load('tokenizers/punkt/spanish.pickle')
+    # Conexion con MongoDB
 
-spanish_tokenizer = nltk.data.load('tokenizers/punkt/spanish.pickle')
+    client = pymongo.MongoClient(MONGODB_URI)
+    db = client.docs
+    docs=db.DOCS
+    spanish_stops = set(stopwords.words('spanish'))
+    newcorpus = PlaintextCorpusReader(corpus_root, '.*')
+    newcorpus.fileids()
 
-# Conexion con MongoDB
+    for fileid in newcorpus.fileids():
+        num_chars = len(newcorpus.raw(fileid))
+        num_words = len(newcorpus.words(fileid))
+        words = newcorpus.words(fileid)
+        # num_sents = len(newcorpus.sents(fileid))
+        num_vocab = len(set(w.lower() for w in newcorpus.words(fileid)))
+        # print(newcorpus.raw(fileid))
+        bcf = BigramCollocationFinder.from_words(words)
+        filter_stops = lambda w: len(w) < 3 or w in spanish_stops
+        bcf.apply_word_filter(filter_stops)
 
+        tag_bi=bcf.nbest(BigramAssocMeasures.likelihood_ratio, 5)
+        tags_array=vocab_words(newcorpus.raw(fileid))
+        tags=tags_array[0]
+        tags_vocab=tags_array[1]
 
-MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
-#MONGODB_URI = 'mongodb://localhost:27017/'
-client = pymongo.MongoClient(MONGODB_URI)
-db = client.docs
-docs=db.DOCS
+        #insertamos el documento
+        post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid).replace('..',''), "tags_vocab":tags_vocab, "tags":tags, "enc":random.randint(1, 50), "pos":random.randint(1, 10), "neg":random.randint(1, 5), "num_words":num_words}
+        post_id = docs.insert_one(post).inserted_id
 
-spanish_stops = set(stopwords.words('spanish'))
+def procesado_corpus():
+    for fichero in listdir(corpuspdf_root):
+        convert_pdf(corpuspdf_root, fichero)
 
-corpus_root = "C:/Users/jpradas/Documents/MASTER/TFM/code/data/corpus/"
-newcorpus = PlaintextCorpusReader(corpus_root, '.*')
-newcorpus.fileids()
-
-for fileid in newcorpus.fileids():
-    num_chars = len(newcorpus.raw(fileid))
-    num_words = len(newcorpus.words(fileid))
-    words = newcorpus.words(fileid)
-    # num_sents = len(newcorpus.sents(fileid))
-    num_vocab = len(set(w.lower() for w in newcorpus.words(fileid)))
-    # print(newcorpus.raw(fileid))
-    bcf = BigramCollocationFinder.from_words(words)
-    filter_stops = lambda w: len(w) < 3 or w in spanish_stops
-    bcf.apply_word_filter(filter_stops)
-
-    tag_bi=bcf.nbest(BigramAssocMeasures.likelihood_ratio, 5)
-    tags_array=vocab_words(newcorpus.raw(fileid))
-    tags=tags_array[0]
-    tags_vocab=tags_array[1]
-    # insertamos el documento
-    post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid), "tags_vocab":tags_vocab, "tags":tags, "enc":0, "pos":0, "neg":0, "num_words":num_words}
-    post_id = docs.insert_one(post).inserted_id
-    # insertamos el indice
-    # indexa ={"nombre": fileid, "id_doc": post_id, "tag_vocab":tags, "tag_bi":tag_bi,"tag_vocab":tags, "enc":0, "pos":0, "neg":0, "num_words":num_words}
-    # index.insert_one(indexa)
+carga_mongodb()
+#procesado_corpus()
