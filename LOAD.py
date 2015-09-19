@@ -74,12 +74,11 @@ def vocab_words(text):
     voc_words=nltk.FreqDist(texto)
     voc_words=[w for w in set(voc_words) if voc_words[w]>5]
     all_words=nltk.FreqDist(texto_todo).most_common(5)
+    cloud=nltk.FreqDist(texto_todo).most_common(100)
     all_words=[w[0].lower() for w in all_words]
-    return [list(all_words),list(voc_words)]
+    return [list(all_words),list(voc_words),cloud]
 
 def carga_mongodb():
-    spanish_tokenizer = nltk.data.load('tokenizers/punkt/spanish.pickle')
-    # Conexion con MongoDB
 
     client = pymongo.MongoClient(MONGODB_URI)
     db = client.docs
@@ -89,30 +88,30 @@ def carga_mongodb():
     newcorpus.fileids()
 
     for fileid in newcorpus.fileids():
-        num_chars = len(newcorpus.raw(fileid))
-        num_words = len(newcorpus.words(fileid))
-        words = newcorpus.words(fileid)
-        # num_sents = len(newcorpus.sents(fileid))
-        num_vocab = len(set(w.lower() for w in newcorpus.words(fileid)))
-        # print(newcorpus.raw(fileid))
-        bcf = BigramCollocationFinder.from_words(words)
-        filter_stops = lambda w: len(w) < 3 or w in spanish_stops
-        bcf.apply_word_filter(filter_stops)
 
-        tag_bi=bcf.nbest(BigramAssocMeasures.likelihood_ratio, 5)
-        tags_array=vocab_words(newcorpus.raw(fileid))
-        tags=tags_array[0]
-        tags_vocab=tags_array[1]
+        try:
+            num_words = len(newcorpus.words(fileid))
+            words = newcorpus.words(fileid)
+            # num_sents = len(newcorpus.sents(fileid))
+            # print(newcorpus.raw(fileid))
+            bcf = BigramCollocationFinder.from_words(words)
+            filter_stops = lambda w: len(w) < 3 or w in spanish_stops
+            bcf.apply_word_filter(filter_stops)
+            tags_array=vocab_words(newcorpus.raw(fileid))
+            tags=tags_array[0]
+            tags_vocab=tags_array[1]
+            cloud=tags_array[2]
 
-        #insertamos el documento
-        post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid).replace('..',''), "tags_vocab":tags_vocab, "tags":tags, "enc":random.randint(1, 50), "pos":random.randint(1, 10), "neg":random.randint(1, 5), "num_words":num_words}
-        post_id = docs.insert_one(post).inserted_id
-
+            #insertamos el documento
+            post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid).replace('..',''), "tags_vocab":tags_vocab, "tags":tags, "enc":random.randint(1, 50), "pos":random.randint(1, 10), "neg":random.randint(1, 5), "num_words":num_words, "cloud":cloud}
+            post_id = docs.insert_one(post).inserted_id
+        except:
+            print("Importacion Faliida:" + fileid)
 def procesado_corpus():
     for fichero in listdir(corpuspdf_root):
         convert_pdf(corpuspdf_root, fichero)
 
-#carga_mongodb()
+carga_mongodb()
 #procesado_corpus()
 
 def carga_nube():
@@ -132,4 +131,3 @@ def carga_nube():
         docs.update({"_id": "ObjectId(d['_id'])"},{"$set":{"wordcloud":all_words}})
     return documentos.count()
 
-print(carga_nube())
