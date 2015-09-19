@@ -112,5 +112,24 @@ def procesado_corpus():
     for fichero in listdir(corpuspdf_root):
         convert_pdf(corpuspdf_root, fichero)
 
-carga_mongodb()
+#carga_mongodb()
 #procesado_corpus()
+
+def carga_nube():
+    MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
+    client = pymongo.MongoClient(MONGODB_URI)
+    db = client.docs
+    docs=db.DOCS
+    documentos=docs.find({},{"texto":1})
+    texto=""
+    for d in documentos:
+        texto= d['texto']
+        tokens=word_tokenize(texto)
+        tokens=[x.lower() for x in tokens if len(x) > 3]
+        spanish_stops = set(stopwords.words('spanish'))
+        completo=[w.lower() for w in tokens if w not in spanish_stops]
+        all_words=nltk.FreqDist(completo).most_common(100)
+        docs.update({"_id": "ObjectId(d['_id'])"},{"$set":{"wordcloud":all_words}})
+    return documentos.count()
+
+print(carga_nube())
