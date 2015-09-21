@@ -76,7 +76,7 @@ def vocab_words(text):
     all_words=nltk.FreqDist(texto_todo).most_common(5)
     cloud=nltk.FreqDist(texto_todo).most_common(100)
     all_words=[w[0].lower() for w in all_words]
-    return [list(all_words),list(voc_words),cloud]
+    return [list(all_words),list(voc_words),list(cloud)]
 
 def carga_mongodb():
 
@@ -101,10 +101,18 @@ def carga_mongodb():
             tags=tags_array[0]
             tags_vocab=tags_array[1]
             cloud=tags_array[2]
+            total_cloud=[]
+
+            for c in cloud:
+                reg={}
+                reg['word']=c[0]
+                reg['total']=c[1]
+                total_cloud.append(reg)
 
             #insertamos el documento
-            post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid).replace('..',''), "tags_vocab":tags_vocab, "tags":tags, "enc":random.randint(1, 50), "pos":random.randint(1, 10), "neg":random.randint(1, 5), "num_words":num_words, "cloud":cloud}
+            post = {"nombre": fileid, "fecha": datetime.datetime.utcnow(), "texto":newcorpus.raw(fileid).replace('..',''), "tags_vocab":tags_vocab, "tags":tags, "enc":random.randint(1, 50), "pos":random.randint(1, 10), "neg":random.randint(1, 5), "num_words":num_words, "cloud":total_cloud}
             post_id = docs.insert_one(post).inserted_id
+
         except:
             print("Importacion Faliida:" + fileid)
 def procesado_corpus():
