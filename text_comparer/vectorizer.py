@@ -2,7 +2,7 @@ from collections import defaultdict
 import re
 
 from text_comparer.similarity import similarity
-
+from nltk.corpus import stopwords
 
 def word_frequencies(word_vector):
     """What percent of the time does each word in the vector appear?
@@ -48,13 +48,8 @@ def vectorize_text(text):
         source: http://www.bckelk.ukfsn.org/words/uk1000n.html
 
         """
-        common_words = set(['the', 'and', 'to', 'of', 'a', 'I', 'in', 'was',
-            'he', 'that', 'it', 'his', 'her', 'you', 'as', 'had', 'with',
-            'for', 'she', 'not', 'at', 'but', 'be', 'my', 'on', 'have', 'him',
-            'is', 'said', 'me', 'which', 'by', 'so', 'this', 'all', 'from',
-            'they', 'no', 'were', 'if', 'would', 'or', 'when', 'what', 'there',
-            'been', 'one', 'could', 'very', 'an', 'who'])
-        return [word for word in text_vector if word not in common_words]
+        spanish_stops = set(stopwords.words('spanish'))
+        return [word for word in text_vector if word not in spanish_stops]
 
     text = text.lower()
     text = remove_punctuation(text)
