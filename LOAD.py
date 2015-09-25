@@ -15,6 +15,7 @@ from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.converter import XMLConverter, HTMLConverter, TextConverter
 from pdfminer.layout import LAParams
+from bson.code import Code
 
 #VARIABLES GENERALES
 MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
@@ -119,23 +120,18 @@ def procesado_corpus():
     for fichero in listdir(corpuspdf_root):
         convert_pdf(corpuspdf_root, fichero)
 
-carga_mongodb()
-#procesado_corpus()
 
-def carga_nube():
-    MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
+
+def get_data_cloud():
     client = pymongo.MongoClient(MONGODB_URI)
     db = client.docs
     docs=db.DOCS
-    documentos=docs.find({},{"texto":1})
-    texto=""
-    for d in documentos:
-        texto= d['texto']
-        tokens=word_tokenize(texto)
-        tokens=[x.lower() for x in tokens if len(x) > 3]
-        spanish_stops = set(stopwords.words('spanish'))
-        completo=[w.lower() for w in tokens if w not in spanish_stops]
-        all_words=nltk.FreqDist(completo).most_common(100)
-        docs.update({"_id": "ObjectId(d['_id'])"},{"$set":{"wordcloud":all_words}})
-    return documentos.count()
+
+    map = Code("function m() { for(var i in this.cloud)  {emit(this.cloud[i].word, this.cloud[i].total);}}")
+    reduce = Code("function(key, values) { return Array.sum(values);};")
+    docs.map_reduce(map, reduce, "CLOUD")
+
+
+carga_mongodb()
+#procesado_corpus()
 

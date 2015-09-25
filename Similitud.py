@@ -39,16 +39,7 @@ def crea_csv():
     for doc in fich:
         f.write('"' + doc['f1'] + '","'+ doc['f2'] +'",'+ str(doc['value']) +'\n')
 
-def get_data_cloud():
-    client = pymongo.MongoClient(MONGODB_URI)
-    db = client.docs
-    docs=db.DOCS
-
-    map = Code("function m() { for(var i in this.cloud)  {emit(this.cloud[i].word, this.cloud[i].total);}}")
-    reduce = Code("function(key, values) { return Array.sum(values);};")
-    docs.map_reduce(map, reduce, "CLOUD")
 
 
 #carga()
 #crea_csv()
-get_data_cloud()
