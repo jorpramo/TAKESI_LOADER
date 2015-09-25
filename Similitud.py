@@ -3,7 +3,9 @@ __author__ = 'jpradas'
 
 from text_comparer.vectorizer import compare_texts
 from nltk.corpus import PlaintextCorpusReader
+import codecs
 import pymongo
+from bson.code import Code
 
 MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
 CSV_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/WEB/static/"
@@ -26,17 +28,27 @@ def carga():
                 pass
 
 def crea_csv():
-    f = open(CSV_root + '/data.csv', 'w')
+
+    f = open(CSV_root + '/data.csv', 'w',encoding='utf8')
     client = pymongo.MongoClient(MONGODB_URI)
     db = client.docs
     docs=db.SIMILITUD
     fich = docs.find({}).sort('f1')
+
     f.write("f1,f2,value\n")
     for doc in fich:
         f.write('"' + doc['f1'] + '","'+ doc['f2'] +'",'+ str(doc['value']) +'\n')
 
+def get_data_cloud():
+    client = pymongo.MongoClient(MONGODB_URI)
+    db = client.docs
+    docs=db.DOCS
+
+    map = Code("function m() { for(var i in this.cloud)  {emit(this.cloud[i].word, this.cloud[i].total);}}")
+    reduce = Code("function(key, values) { return Array.sum(values);};")
+    docs.map_reduce(map, reduce, "CLOUD")
 
 
-
-carga()
-crea_csv()
+#carga()
+#crea_csv()
+get_data_cloud()
