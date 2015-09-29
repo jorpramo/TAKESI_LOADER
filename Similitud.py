@@ -9,7 +9,7 @@ from bson.code import Code
 
 MONGODB_URI = 'mongodb://takesibatch:takesi2015@ds053439.mongolab.com:53439/docs'
 CSV_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/WEB/static/"
-corpus_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/data/corpus/"
+corpus_root = "C:/Users/jpradas/Documents/MASTER/TFM/CODIGO/LOADER/CORPUS/TXT/"
 
 def carga():
     client = pymongo.MongoClient(MONGODB_URI)
@@ -41,5 +41,5 @@ def crea_csv():
 
 
 
-#carga()
-#crea_csv()
+carga()
+crea_csv()
